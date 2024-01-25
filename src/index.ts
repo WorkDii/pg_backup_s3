@@ -1,1 +1,7 @@
-console.log("Hello World!1");
+import { $ } from "zx";
+
+async function main() {
+  await $`ls -l `;
+}
+
+main();

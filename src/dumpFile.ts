@@ -1,5 +1,5 @@
 import { $ } from "zx";
-import { env } from "./env.ts";
+import { env } from "./env.js";
 
 export const dumpFile = async (database: string) => {
   await $`PGPASSWORD=${env.POSTGRES_PASSWORD} pg_dump --format=custom \

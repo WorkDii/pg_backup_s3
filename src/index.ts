@@ -1,8 +1,8 @@
-import { env } from "./env.ts";
+import { env } from "./env.js";
 import { CronJob } from "cron";
-import { removeOldS3, uploadToS3 } from "./s3.ts";
-import { dumpFile } from "./dumpFile.ts";
-import { removeLocalFile } from "./removeFile.ts";
+import { removeOldS3, uploadToS3 } from "./s3.js";
+import { dumpFile } from "./dumpFile.js";
+import { removeLocalFile } from "./removeFile.js";
 
 const {
   POSTGRES_DATABASE,

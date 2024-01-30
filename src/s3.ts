@@ -1,5 +1,5 @@
 import { S3 } from "@aws-sdk/client-s3";
-import { env } from "./env.ts";
+import { env } from "./env.js";
 import { createReadStream } from "fs";
 import { addDays } from "date-fns";
 

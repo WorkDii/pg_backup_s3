@@ -1,2 +1,2 @@
 [phases.setup]
-nixPkgs = ["...", "postgresql16-client"]
+nixPkgs = ["...", "postgresql_16"]

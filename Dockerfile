@@ -1,4 +1,4 @@
-FROM alpine:3.18 AS build
+FROM 20-alpine3.18 AS build
 
 RUN apk add --update --no-cache nodejs npm
 
@@ -14,7 +14,7 @@ RUN npm install && \
   npm run build && \
   npm prune --production
 
-FROM alpine:3.18
+FROM 20-alpine3.18
 
 WORKDIR /root
 

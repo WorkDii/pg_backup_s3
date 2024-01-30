@@ -1,46 +1,72 @@
-import { $ } from "zx";
 import { env } from "./env.ts";
 import { CronJob } from "cron";
-import { S3Client, S3ClientConfig, S3 } from "@aws-sdk/client-s3";
-import { Upload } from "@aws-sdk/lib-storage";
-import { createReadStream, unlink, statSync } from "fs";
-import { s3Client } from "./s3.ts";
+import { removeOldS3, uploadToS3 } from "./s3.ts";
 import { dumpFile } from "./dumpFile.ts";
-import { removeFile } from "./removeFile.ts";
+import { removeLocalFile } from "./removeFile.ts";
 
-const uploadToS3 = async ({ name, path }: { name: string; path: string }) => {
-  console.log("Uploading backup to S3...");
+const {
+  POSTGRES_DATABASE,
+  SCHEDULE_HOURLY,
+  BACKUP_KEEP_DAYS_HOURLY,
+  SCHEDULE_DAILY,
+  BACKUP_KEEP_DAYS_DAILY,
+  SCHEDULE_WEEKLY,
+  BACKUP_KEEP_DAYS_WEEKLY,
+  SCHEDULE_MONTHLY,
+  BACKUP_KEEP_DAYS_MONTHLY,
+} = env;
 
-  const bucket = env.S3_BUCKET;
-
-  await s3Client.putObject({
-    Bucket: bucket,
-    Key: name,
-    Body: createReadStream(path),
-  });
-  console.log("Backup uploaded to S3...");
+const logAndExecute = async (message: string, task: () => Promise<void>) => {
+  console.log(`Starting ${message} ...`);
+  await task();
+  console.log(`${message} done...`);
 };
 
-async function main() {
-  const database = env.POSTGRES_DATABASE;
+const runningJob = async (database: string, keepDay: number) => {
+  console.log(`${new Date().toISOString()} Backup ${database} starting...`);
+
   const timestamp = new Date().toISOString();
-  const folder = `${database}/hourly`;
+  const folder = `db_backup/${database}/hourly`;
   const filename = `${folder}/${database}-${timestamp}.dump`;
 
-  await dumpFile(database);
-  await uploadToS3({ name: filename, path: `${database}.dump` });
-  await removeFile(database);
-}
-main();
+  await logAndExecute(`dump file ${database}`, () => dumpFile(database));
+  await logAndExecute(`upload to S3 ${database}`, () =>
+    uploadToS3({ name: filename, path: `${database}.dump` })
+  );
+  await logAndExecute(`remove local file ${database}`, () =>
+    removeLocalFile(database)
+  );
+  await logAndExecute(`remove old S3 ${database}`, () =>
+    removeOldS3(keepDay, folder)
+  );
 
-// if (env.SCHEDULE_HOURLY && env.BACKUP_KEEP_DAYS_HOURLY) {
-//   const job = new CronJob(env.SCHEDULE_HOURLY, async () => {
-//     await $`pg_dump --format=custom \
-//     -h ${env.POSTGRES_HOST} \
-//     -p ${env.POSTGRES_PORT} \
-//     -U ${env.POSTGRES_USER} \
-//     -d ${env.POSTGRES_DATABASE} \
-//     > ${env.POSTGRES_DATABASE}.dump`;
-//   });
-//   job.start();
-// }
+  console.log(`${new Date().toISOString()} Backup ${database} done...`);
+};
+
+async function createJob(schedule: string, keepDays: number, jobName: string) {
+  const job = new CronJob(schedule, async () => {
+    const all = POSTGRES_DATABASE.split(",").map((database) => {
+      return runningJob(database.trim(), keepDays || 1);
+    });
+    await Promise.all(all);
+  });
+
+  console.log(`Starting ${jobName}...`);
+  job.start();
+}
+
+if (!!SCHEDULE_HOURLY && !!BACKUP_KEEP_DAYS_HOURLY) {
+  createJob(SCHEDULE_HOURLY, BACKUP_KEEP_DAYS_HOURLY, "job hourly");
+}
+
+if (!!SCHEDULE_DAILY && !!BACKUP_KEEP_DAYS_DAILY) {
+  createJob(SCHEDULE_DAILY, BACKUP_KEEP_DAYS_DAILY, "job daily");
+}
+
+if (!!SCHEDULE_WEEKLY && !!BACKUP_KEEP_DAYS_WEEKLY) {
+  createJob(SCHEDULE_WEEKLY, BACKUP_KEEP_DAYS_WEEKLY, "job weekly");
+}
+
+if (!!SCHEDULE_MONTHLY && !!BACKUP_KEEP_DAYS_MONTHLY) {
+  createJob(SCHEDULE_MONTHLY, BACKUP_KEEP_DAYS_MONTHLY, "job monthly");
+}

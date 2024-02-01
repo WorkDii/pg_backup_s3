@@ -22,11 +22,15 @@ const logAndExecute = async (message: string, task: () => Promise<void>) => {
   console.log(`${message} done...`);
 };
 
-const runningJob = async (database: string, keepDay: number) => {
+const runningJob = async (
+  database: string,
+  keepDay: number,
+  scheduleName: string
+) => {
   console.log(`${new Date().toISOString()} Backup ${database} starting...`);
 
   const timestamp = new Date().toISOString();
-  const folder = `db_backup/${database}/hourly`;
+  const folder = `db_backup/${database}/${scheduleName}`;
   const filename = `${folder}/${database}-${timestamp}.dump`;
 
   await logAndExecute(`dump file ${database}`, () => dumpFile(database));
@@ -43,30 +47,34 @@ const runningJob = async (database: string, keepDay: number) => {
   console.log(`${new Date().toISOString()} Backup ${database} done...`);
 };
 
-async function createJob(schedule: string, keepDays: number, jobName: string) {
+async function createJob(
+  schedule: string,
+  keepDays: number,
+  scheduleName: string
+) {
   const job = new CronJob(schedule, async () => {
     const all = POSTGRES_DATABASE.split(",").map((database) => {
-      return runningJob(database.trim(), keepDays || 1);
+      return runningJob(database.trim(), keepDays || 1, scheduleName);
     });
     await Promise.all(all);
   });
 
-  console.log(`Starting ${jobName}...`);
+  console.log(`Starting job ${scheduleName}...`);
   job.start();
 }
 
 if (!!SCHEDULE_HOURLY && !!BACKUP_KEEP_DAYS_HOURLY) {
-  createJob(SCHEDULE_HOURLY, BACKUP_KEEP_DAYS_HOURLY, "job hourly");
+  createJob(SCHEDULE_HOURLY, BACKUP_KEEP_DAYS_HOURLY, "hourly");
 }
 
 if (!!SCHEDULE_DAILY && !!BACKUP_KEEP_DAYS_DAILY) {
-  createJob(SCHEDULE_DAILY, BACKUP_KEEP_DAYS_DAILY, "job daily");
+  createJob(SCHEDULE_DAILY, BACKUP_KEEP_DAYS_DAILY, "daily");
 }
 
 if (!!SCHEDULE_WEEKLY && !!BACKUP_KEEP_DAYS_WEEKLY) {
-  createJob(SCHEDULE_WEEKLY, BACKUP_KEEP_DAYS_WEEKLY, "job weekly");
+  createJob(SCHEDULE_WEEKLY, BACKUP_KEEP_DAYS_WEEKLY, "weekly");
 }
 
 if (!!SCHEDULE_MONTHLY && !!BACKUP_KEEP_DAYS_MONTHLY) {
-  createJob(SCHEDULE_MONTHLY, BACKUP_KEEP_DAYS_MONTHLY, "job monthly");
+  createJob(SCHEDULE_MONTHLY, BACKUP_KEEP_DAYS_MONTHLY, "monthly");
 }

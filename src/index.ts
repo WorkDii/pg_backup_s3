@@ -1,6 +1,6 @@
 import { env } from "./env.js";
 import { CronJob } from "cron";
-import { removeOldS3, uploadToS3, uploads3AndRemoveOldS3 } from "./s3.js";
+import { uploadS3AndRemoveOldS3 } from "./s3.js";
 import { dumpFile } from "./dumpFile.js";
 import { removeLocalFile } from "./removeFile.js";
 import pMap from "p-map";
@@ -28,7 +28,7 @@ const runningJob = async (database: string) => {
   await logAndExecute(`dump file ${database}`, () => dumpFile(database));
 
   await logAndExecute(`upload to s3 ${database} hourly`, () => {
-    return uploads3AndRemoveOldS3({
+    return uploadS3AndRemoveOldS3({
       database,
       keepDay: BACKUP_KEEP_DAYS_HOURLY,
       scheduleName: "hourly",
@@ -39,7 +39,7 @@ const runningJob = async (database: string) => {
   // daily
   if (BACKUP_KEEP_DAYS_DAILY && new Date().getHours() === 22) {
     await logAndExecute(`upload to s3 ${database} daily`, () => {
-      return uploads3AndRemoveOldS3({
+      return uploadS3AndRemoveOldS3({
         database,
         keepDay: BACKUP_KEEP_DAYS_DAILY,
         scheduleName: "daily",
@@ -55,7 +55,7 @@ const runningJob = async (database: string) => {
     new Date().getHours() === 22
   ) {
     await logAndExecute(`upload to s3 ${database} weekly`, () => {
-      return uploads3AndRemoveOldS3({
+      return uploadS3AndRemoveOldS3({
         database,
         keepDay: BACKUP_KEEP_DAYS_WEEKLY,
         scheduleName: "weekly",
@@ -71,7 +71,7 @@ const runningJob = async (database: string) => {
     new Date().getHours() === 22
   ) {
     await logAndExecute(`upload to s3 ${database} monthly`, () => {
-      return uploads3AndRemoveOldS3({
+      return uploadS3AndRemoveOldS3({
         database,
         keepDay: BACKUP_KEEP_DAYS_MONTHLY,
         scheduleName: "monthly",

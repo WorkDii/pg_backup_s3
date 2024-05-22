@@ -61,7 +61,7 @@ export const removeOldS3 = async (keepDay: number, folder: string) => {
   }
 };
 
-export const uploads3AndRemoveOldS3 = async ({
+export const uploadS3AndRemoveOldS3 = async ({
   database,
   keepDay,
   scheduleName,

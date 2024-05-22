@@ -13,37 +13,19 @@ export const env = load({
   POSTGRES_PASSWORD: String,
   POSTGRES_DATABASE: String,
 
-  SCHEDULE_MONTHLY: {
-    type: String,
-    optional: true,
-  },
-  BACKUP_KEEP_DAYS_MONTHLY: {
-    type: Number,
-    optional: true,
-  },
+  SCHEDULE_HOURLY: String,
 
-  SCHEDULE_WEEKLY: {
-    type: String,
+  BACKUP_KEEP_DAYS_HOURLY: Number,
+
+  BACKUP_KEEP_DAYS_DAILY: {
+    type: Number,
     optional: true,
   },
   BACKUP_KEEP_DAYS_WEEKLY: {
     type: Number,
     optional: true,
   },
-
-  SCHEDULE_DAILY: {
-    type: String,
-    optional: true,
-  },
-  BACKUP_KEEP_DAYS_DAILY: {
-    type: Number,
-    optional: true,
-  },
-  SCHEDULE_HOURLY: {
-    type: String,
-    optional: true,
-  },
-  BACKUP_KEEP_DAYS_HOURLY: {
+  BACKUP_KEEP_DAYS_MONTHLY: {
     type: Number,
     optional: true,
   },

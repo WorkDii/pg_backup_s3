@@ -1,18 +1,16 @@
 import { env } from "./env.js";
 import { CronJob } from "cron";
-import { removeOldS3, uploadToS3 } from "./s3.js";
+import { removeOldS3, uploadToS3, uploads3AndRemoveOldS3 } from "./s3.js";
 import { dumpFile } from "./dumpFile.js";
 import { removeLocalFile } from "./removeFile.js";
+import pMap from "p-map";
 
 const {
   POSTGRES_DATABASE,
   SCHEDULE_HOURLY,
   BACKUP_KEEP_DAYS_HOURLY,
-  SCHEDULE_DAILY,
   BACKUP_KEEP_DAYS_DAILY,
-  SCHEDULE_WEEKLY,
   BACKUP_KEEP_DAYS_WEEKLY,
-  SCHEDULE_MONTHLY,
   BACKUP_KEEP_DAYS_MONTHLY,
 } = env;
 
@@ -22,59 +20,83 @@ const logAndExecute = async (message: string, task: () => Promise<void>) => {
   console.log(`${message} done...`);
 };
 
-const runningJob = async (
-  database: string,
-  keepDay: number,
-  scheduleName: string
-) => {
+const runningJob = async (database: string) => {
   console.log(`${new Date().toISOString()} Backup ${database} starting...`);
 
   const timestamp = new Date().toISOString();
-  const folder = `db_backup/${database}/${scheduleName}`;
-  const filename = `${folder}/${database}-${timestamp}.dump`;
 
   await logAndExecute(`dump file ${database}`, () => dumpFile(database));
-  await logAndExecute(`upload to S3 ${database}`, () =>
-    uploadToS3({ name: filename, path: `${database}.dump` })
-  );
+
+  await logAndExecute(`upload to s3 ${database} hourly`, () => {
+    return uploads3AndRemoveOldS3({
+      database,
+      keepDay: BACKUP_KEEP_DAYS_HOURLY,
+      scheduleName: "hourly",
+      timestamp,
+    });
+  });
+
+  // daily
+  if (BACKUP_KEEP_DAYS_DAILY && new Date().getHours() === 22) {
+    await logAndExecute(`upload to s3 ${database} daily`, () => {
+      return uploads3AndRemoveOldS3({
+        database,
+        keepDay: BACKUP_KEEP_DAYS_DAILY,
+        scheduleName: "daily",
+        timestamp,
+      });
+    });
+  }
+
+  // weekly
+  if (
+    BACKUP_KEEP_DAYS_WEEKLY &&
+    new Date().getDay() === 0 &&
+    new Date().getHours() === 22
+  ) {
+    await logAndExecute(`upload to s3 ${database} weekly`, () => {
+      return uploads3AndRemoveOldS3({
+        database,
+        keepDay: BACKUP_KEEP_DAYS_WEEKLY,
+        scheduleName: "weekly",
+        timestamp,
+      });
+    });
+  }
+
+  // monthly
+  if (
+    BACKUP_KEEP_DAYS_MONTHLY &&
+    new Date().getDate() === 1 &&
+    new Date().getHours() === 22
+  ) {
+    await logAndExecute(`upload to s3 ${database} monthly`, () => {
+      return uploads3AndRemoveOldS3({
+        database,
+        keepDay: BACKUP_KEEP_DAYS_MONTHLY,
+        scheduleName: "monthly",
+        timestamp,
+      });
+    });
+  }
+
   await logAndExecute(`remove local file ${database}`, () =>
     removeLocalFile(database)
-  );
-  await logAndExecute(`remove old S3 ${database}`, () =>
-    removeOldS3(keepDay, folder)
   );
 
   console.log(`${new Date().toISOString()} Backup ${database} done...`);
 };
 
-async function createJob(
-  schedule: string,
-  keepDays: number,
-  scheduleName: string
-) {
-  const job = new CronJob(schedule, async () => {
-    const all = POSTGRES_DATABASE.split(",").map((database) => {
-      return runningJob(database.trim(), keepDays || 1, scheduleName);
-    });
-    await Promise.all(all);
-  });
+const job = new CronJob(SCHEDULE_HOURLY, async () => {
+  const allDatabase = POSTGRES_DATABASE.split(",");
+  await pMap(
+    allDatabase,
+    async (database) => {
+      await runningJob(database.trim());
+    },
+    { concurrency: 1 }
+  );
+});
 
-  console.log(`Starting job ${scheduleName}...`);
-  job.start();
-}
-
-if (!!SCHEDULE_HOURLY && !!BACKUP_KEEP_DAYS_HOURLY) {
-  createJob(SCHEDULE_HOURLY, BACKUP_KEEP_DAYS_HOURLY, "hourly");
-}
-
-if (!!SCHEDULE_DAILY && !!BACKUP_KEEP_DAYS_DAILY) {
-  createJob(SCHEDULE_DAILY, BACKUP_KEEP_DAYS_DAILY, "daily");
-}
-
-if (!!SCHEDULE_WEEKLY && !!BACKUP_KEEP_DAYS_WEEKLY) {
-  createJob(SCHEDULE_WEEKLY, BACKUP_KEEP_DAYS_WEEKLY, "weekly");
-}
-
-if (!!SCHEDULE_MONTHLY && !!BACKUP_KEEP_DAYS_MONTHLY) {
-  createJob(SCHEDULE_MONTHLY, BACKUP_KEEP_DAYS_MONTHLY, "monthly");
-}
+console.log(`Starting job backup database`);
+job.start();

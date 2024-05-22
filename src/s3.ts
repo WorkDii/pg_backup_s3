@@ -60,3 +60,20 @@ export const removeOldS3 = async (keepDay: number, folder: string) => {
     });
   }
 };
+
+export const uploads3AndRemoveOldS3 = async ({
+  database,
+  keepDay,
+  scheduleName,
+  timestamp,
+}: {
+  keepDay: number;
+  database: string;
+  scheduleName: string;
+  timestamp: string;
+}) => {
+  const folder = `db_backup/${database}/${scheduleName}`;
+  const filename = `${folder}/${database}-${timestamp}.dump`;
+  await uploadToS3({ name: filename, path: `${database}.dump` });
+  await removeOldS3(keepDay, folder);
+};

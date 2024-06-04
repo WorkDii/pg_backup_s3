@@ -73,7 +73,7 @@ export const uploadS3AndRemoveOldS3 = async ({
   timestamp: string;
 }) => {
   const folder = `db_backup/${database}/${scheduleName}`;
-  const filename = `${folder}/${database}-${timestamp}.dump`;
-  await uploadToS3({ name: filename, path: `${database}.dump` });
+  const filename = `${folder}/${database}-${timestamp}.gz`;
+  await uploadToS3({ name: filename, path: `${database}.gz` });
   await removeOldS3(keepDay, folder);
 };

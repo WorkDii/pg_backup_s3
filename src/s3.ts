@@ -51,7 +51,7 @@ export const removeOldS3 = async (keepDay: number, folder: string) => {
     return fileDate < keepDate;
   });
 
-  if (objectsToDelete) {
+  if (objectsToDelete?.length) {
     await s3Client.deleteObjects({
       Bucket: S3_BUCKET,
       Delete: {

@@ -1,9 +1,17 @@
-node_modules
-dist
 .env
 .env*
-.flaskenv*
-!.env.project
-!.env.vault
+!.env.example
 
+pg_backup_s3
+pg_backup_s3.exe
+
+# Node leftovers, still present on disk until Task 8 removes them. Keeping
+# them ignored means an accidental `git add -A` in an intervening task
+# cannot commit node_modules.
+node_modules
+/dist/
+
+*.dump
 *.gz
+
+.superpowers/

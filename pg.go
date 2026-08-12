@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -125,3 +129,80 @@ func (b *boundedBuffer) Write(p []byte) (int, error) {
 }
 
 func (b *boundedBuffer) String() string { return strings.TrimSpace(string(b.buf)) }
+
+// DetectMajor asks the server for its own version. The psql binary comes from
+// the newest installed client because libpq speaks to any server version for
+// a query this simple.
+//
+// This runs on every backup rather than being cached at startup, so a server
+// upgrade is picked up without redeploying. The cost is one trivial query.
+func DetectMajor(ctx context.Context, binDir string, env []string) (int, error) {
+	cmd := exec.CommandContext(ctx, filepath.Join(binDir, "psql"), "-tAqc", "SHOW server_version_num")
+	cmd.Env = env
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	out, err := cmd.Output()
+	if err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return 0, fmt.Errorf("psql: %w: %s", err, msg)
+		}
+		return 0, fmt.Errorf("psql: %w", err)
+	}
+	return parseServerVersion(string(out))
+}
+
+// Dump is a running pg_dump whose custom-format output is readable from
+// Stdout. The caller must fully drain Stdout before calling Wait, otherwise
+// pg_dump blocks on a full pipe.
+type Dump struct {
+	Stdout io.ReadCloser
+
+	cmd    *exec.Cmd
+	stderr *boundedBuffer
+}
+
+// StartDump launches pg_dump in custom format writing to stdout.
+//
+// The compression flag is deliberately omitted: -Z takes a bare integer on
+// PostgreSQL 15 and earlier but a method:level string on 16 and later, and
+// the default (level 6) is identical across every bundled version.
+func StartDump(ctx context.Context, binDir string, env []string) (*Dump, error) {
+	cmd := exec.CommandContext(ctx, filepath.Join(binDir, "pg_dump"), "--format=custom", "--no-password")
+	cmd.Env = env
+
+	stderr := &boundedBuffer{max: 8 << 10}
+	cmd.Stderr = stderr
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("pg_dump stdout pipe: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("starting pg_dump: %w", err)
+	}
+	return &Dump{Stdout: stdout, cmd: cmd, stderr: stderr}, nil
+}
+
+// Wait reaps pg_dump and reports a non-zero exit with its stderr tail
+// attached. Call it only after Stdout has been drained or Terminate called.
+func (d *Dump) Wait() error {
+	if err := d.cmd.Wait(); err != nil {
+		if msg := d.stderr.String(); msg != "" {
+			return fmt.Errorf("%w: %s", err, msg)
+		}
+		return err
+	}
+	return nil
+}
+
+// Terminate kills pg_dump and closes the read end of its output. It is used
+// when the upload fails part-way, where pg_dump would otherwise block forever
+// writing into a pipe nobody is reading.
+func (d *Dump) Terminate() {
+	_ = d.Stdout.Close()
+	if d.cmd.Process != nil {
+		_ = d.cmd.Process.Kill()
+	}
+}

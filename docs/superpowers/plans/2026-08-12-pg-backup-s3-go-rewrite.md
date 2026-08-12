@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Go version: **1.26** (`go.mod` declares `go 1.26`; build image `golang:1.26-bookworm`)
-- Total non-stdlib direct dependencies: **3** — `aws-sdk-go-v2`, `gocron/v2`, `godotenv`. Do not add more.
+- Total non-stdlib direct dependencies: **3 logical** — `aws-sdk-go-v2`, `gocron/v2`, `godotenv`. Do not add others. Note `aws-sdk-go-v2` is distributed as several Go modules (`service/s3`, `feature/s3/manager`, `credentials`, and the core module for the `aws` package), so `go.mod` will list more than three `require` lines. That is expected and is not a violation of this constraint.
 - Module path: `pg_backup_s3` — a bare name is valid because this binary is never imported by another module.
 - All source files live at repo root in `package main`. No `cmd/` or `internal/` directories.
 - Environment variable names are **unchanged** from the existing `.env`. Do not rename any.
@@ -63,10 +63,17 @@ The existing file is Node-oriented. Replace its entire contents with:
 
 pg_backup_s3
 pg_backup_s3.exe
+
+# Node leftovers, still present on disk until Task 8 removes them. Keeping
+# them ignored means an accidental `git add -A` in an intervening task
+# cannot commit node_modules.
+node_modules
 /dist/
 
 *.dump
 *.gz
+
+.superpowers/
 ```
 
 - [ ] **Step 3: Write the failing tests**

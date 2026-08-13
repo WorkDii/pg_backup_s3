@@ -1,0 +1,7 @@
+# Go tooling assumes LF; this checkout has core.autocrlf=true.
+*.go text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf

@@ -11,18 +11,18 @@ func envMap(m map[string]string) func(string) string {
 // baseEnv is a minimal valid environment: all required vars, one active tier.
 func baseEnv() map[string]string {
 	return map[string]string{
-		"S3_REGION":               "us-east-1",
-		"S3_ACCESS_KEY_ID":        "key",
-		"S3_SECRET_ACCESS_KEY":    "secret",
-		"S3_BUCKET":               "bucket",
-		"S3_ENDPOINT":             "https://example.com",
-		"POSTGRES_HOST":           "db.example.com",
-		"POSTGRES_PORT":           "5432",
-		"POSTGRES_USER":           "postgres",
-		"POSTGRES_PASSWORD":       "pw",
-		"POSTGRES_DATABASE":       "app",
-		"SCHEDULE_DAILY":          "0 22 * * *",
-		"BACKUP_KEEP_DAYS_DAILY":  "7",
+		"S3_REGION":              "us-east-1",
+		"S3_ACCESS_KEY_ID":       "key",
+		"S3_SECRET_ACCESS_KEY":   "secret",
+		"S3_BUCKET":              "bucket",
+		"S3_ENDPOINT":            "https://example.com",
+		"POSTGRES_HOST":          "db.example.com",
+		"POSTGRES_PORT":          "5432",
+		"POSTGRES_USER":          "postgres",
+		"POSTGRES_PASSWORD":      "pw",
+		"POSTGRES_DATABASE":      "app",
+		"SCHEDULE_DAILY":         "0 22 * * *",
+		"BACKUP_KEEP_DAYS_DAILY": "7",
 	}
 }
 
